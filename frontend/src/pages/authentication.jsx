@@ -1,51 +1,87 @@
 import * as React from 'react';
-import Avatar from '@mui/material/Avatar';
+import { useNavigate } from 'react-router-dom';
 import Button from '@mui/material/Button';
-import CssBaseline from '@mui/material/CssBaseline';
 import TextField from '@mui/material/TextField';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import Link from '@mui/material/Link';
-import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import Typography from '@mui/material/Typography';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { AuthContext } from '../contexts/AuthContext';
-import { Snackbar } from '@mui/material';
+import { Snackbar, InputAdornment, IconButton } from '@mui/material';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import VideocamIcon from '@mui/icons-material/Videocam';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-
-
-// TODO remove, this demo shouldn't need to reset the theme.
-
-const defaultTheme = createTheme();
+// Design theme override for inputs and buttons
+const theme = createTheme({
+    palette: {
+        primary: {
+            main: '#2563EB',
+            dark: '#1D4ED8',
+        },
+        background: {
+            default: '#F8FAFC',
+            paper: '#FFFFFF',
+        },
+        text: {
+            primary: '#0F172A',
+            secondary: '#64748B',
+        }
+    },
+    typography: {
+        fontFamily: "'Inter', sans-serif",
+    },
+    components: {
+        MuiButton: {
+            styleOverrides: {
+                root: {
+                    borderRadius: '12px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    padding: '0.75rem 1rem',
+                }
+            }
+        },
+        MuiOutlinedInput: {
+            styleOverrides: {
+                root: {
+                    borderRadius: '12px',
+                }
+            }
+        }
+    }
+});
 
 export default function Authentication() {
-
-    
-
-    const [username, setUsername] = React.useState();
-    const [password, setPassword] = React.useState();
-    const [name, setName] = React.useState();
-    const [error, setError] = React.useState();
-    const [message, setMessage] = React.useState();
-
-
-    const [formState, setFormState] = React.useState(0);
-
-    const [open, setOpen] = React.useState(false)
-
+    const navigate = useNavigate();
+    const [username, setUsername] = React.useState("");
+    const [password, setPassword] = React.useState("");
+    const [name, setName] = React.useState("");
+    const [error, setError] = React.useState("");
+    const [message, setMessage] = React.useState("");
+    const [formState, setFormState] = React.useState(0); // 0 = Login, 1 = Register
+    const [open, setOpen] = React.useState(false);
+    const [showPassword, setShowPassword] = React.useState(false);
+    const [rememberMe, setRememberMe] = React.useState(false);
 
     const { handleRegister, handleLogin } = React.useContext(AuthContext);
 
-    let handleAuth = async () => {
+    const handleClickShowPassword = () => setShowPassword((show) => !show);
+
+    const handleAuth = async (e) => {
+        if (e) e.preventDefault();
+        
+        if (!username || !password || (formState === 1 && !name)) {
+            setError("Please fill out all required fields.");
+            return;
+        }
+
         try {
             if (formState === 0) {
-
-                let result = await handleLogin(username, password)
-
-
+                await handleLogin(username, password);
             }
             if (formState === 1) {
                 let result = await handleRegister(name, username, password);
@@ -53,123 +89,181 @@ export default function Authentication() {
                 setUsername("");
                 setMessage(result);
                 setOpen(true);
-                setError("")
-                setFormState(0)
-                setPassword("")
+                setError("");
+                setFormState(0);
+                setPassword("");
+                setName("");
             }
         } catch (err) {
-
             console.log(err);
-            let message = (err.response.data.message);
-            setError(message);
+            let errMsg = err.response?.data?.message || "An authentication error occurred. Please try again.";
+            setError(errMsg);
         }
-    }
-
+    };
 
     return (
-        <ThemeProvider theme={defaultTheme}>
-            <Grid container component="main" sx={{ height: '100vh' }}>
-                <CssBaseline />
-                <Grid
-                    item
-                    xs={false}
-                    sm={4}
-                    md={7}
-                    sx={{
-                        backgroundImage: 'url(https://source.unsplash.com/random?wallpapers)',
-                        backgroundRepeat: 'no-repeat',
-                        backgroundColor: (t) =>
-                            t.palette.mode === 'light' ? t.palette.grey[50] : t.palette.grey[900],
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                    }}
-                />
-                <Grid item xs={12} sm={8} md={5} component={Paper} elevation={6} square>
-                    <Box
-                        sx={{
-                            my: 8,
-                            mx: 4,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                        }}
-                    >
-                        <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }}>
-                            <LockOutlinedIcon />
-                        </Avatar>
+        <ThemeProvider theme={theme}>
+            <div className="authContainer">
+                <Box className="authCard">
+                    {/* Back Navigation */}
+                    <div style={{ alignSelf: 'flex-start', marginBottom: '1.25rem' }}>
+                        <Link 
+                            href="#" 
+                            onClick={(e) => { e.preventDefault(); navigate("/"); }}
+                            sx={{ 
+                                display: 'inline-flex', 
+                                alignItems: 'center', 
+                                gap: '0.5rem', 
+                                textDecoration: 'none', 
+                                color: 'text.secondary', 
+                                fontWeight: 600, 
+                                fontSize: '0.85rem',
+                                '&:hover': { color: 'primary.main' }
+                            }}
+                        >
+                            <ArrowBackIcon style={{ fontSize: '1rem' }} />
+                            Back to Home
+                        </Link>
+                    </div>
 
-
-                        <div>
-                            <Button variant={formState === 0 ? "contained" : ""} onClick={() => { setFormState(0) }}>
-                                Sign In
-                            </Button>
-                            <Button variant={formState === 1 ? "contained" : ""} onClick={() => { setFormState(1) }}>
-                                Sign Up
-                            </Button>
+                    {/* Header Logo */}
+                    <div className="authHeader">
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                            <VideocamIcon style={{ color: '#2563EB', fontSize: '2rem' }} />
+                            <Typography className="authLogo" variant="h2" component="span" style={{ margin: 0 }}>
+                                SANGAMA
+                            </Typography>
                         </div>
+                        <Typography className="authWelcome" variant="body2">
+                            {formState === 0 
+                                ? "Welcome back! Please enter your details." 
+                                : "Create a new account to host video meetings."}
+                        </Typography>
+                    </div>
 
-                        <Box component="form" noValidate sx={{ mt: 1 }}>
-                            {formState === 1 ? <TextField
+                    {/* Switch Tabs */}
+                    <div className="authTabs">
+                        <div 
+                            className={`authTab ${formState === 0 ? 'active' : ''}`} 
+                            onClick={() => { setFormState(0); setError(""); }}
+                        >
+                            Sign In
+                        </div>
+                        <div 
+                            className={`authTab ${formState === 1 ? 'active' : ''}`} 
+                            onClick={() => { setFormState(1); setError(""); }}
+                        >
+                            Sign Up
+                        </div>
+                    </div>
+
+                    {/* Authentication Form */}
+                    <Box component="form" onSubmit={handleAuth} noValidate sx={{ mt: 1, width: '100%' }}>
+                        {formState === 1 && (
+                            <TextField
                                 margin="normal"
                                 required
                                 fullWidth
-                                id="username"
+                                id="name"
                                 label="Full Name"
-                                name="username"
+                                name="name"
                                 value={name}
-                                autoFocus
+                                autoFocus={formState === 1}
                                 onChange={(e) => setName(e.target.value)}
-                            /> : <></>}
-
-                            <TextField
-                                margin="normal"
-                                required
-                                fullWidth
-                                id="username"
-                                label="Username"
-                                name="username"
-                                value={username}
-                                autoFocus
-                                onChange={(e) => setUsername(e.target.value)}
-
+                                sx={{ mb: 1.5 }}
                             />
-                            <TextField
-                                margin="normal"
-                                required
-                                fullWidth
-                                name="password"
-                                label="Password"
-                                value={password}
-                                type="password"
-                                onChange={(e) => setPassword(e.target.value)}
+                        )}
 
-                                id="password"
-                            />
+                        <TextField
+                            margin="normal"
+                            required
+                            fullWidth
+                            id="username"
+                            label="Username"
+                            name="username"
+                            value={username}
+                            autoFocus={formState === 0}
+                            onChange={(e) => setUsername(e.target.value)}
+                            sx={{ mb: 1.5 }}
+                        />
 
-                            <p style={{ color: "red" }}>{error}</p>
+                        <TextField
+                            margin="normal"
+                            required
+                            fullWidth
+                            name="password"
+                            label="Password"
+                            value={password}
+                            type={showPassword ? "text" : "password"}
+                            id="password"
+                            onChange={(e) => setPassword(e.target.value)}
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            aria-label="toggle password visibility"
+                                            onClick={handleClickShowPassword}
+                                            edge="end"
+                                            size="small"
+                                        >
+                                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                )
+                            }}
+                            sx={{ mb: 1 }}
+                        />
 
-                            <Button
-                                type="button"
-                                fullWidth
-                                variant="contained"
-                                sx={{ mt: 3, mb: 2 }}
-                                onClick={handleAuth}
-                            >
-                                {formState === 0 ? "Login " : "Register"}
-                            </Button>
+                        {/* Extra controls (Remember me / Forgot password) */}
+                        {formState === 0 && (
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1, mb: 1.5 }}>
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox 
+                                            value="remember" 
+                                            color="primary" 
+                                            size="small"
+                                            checked={rememberMe} 
+                                            onChange={(e) => setRememberMe(e.target.checked)}
+                                        />
+                                    }
+                                    label={<Typography variant="body2" sx={{ color: 'text.secondary', userSelect: 'none' }}>Remember me</Typography>}
+                                />
+                                <Link 
+                                    href="#" 
+                                    variant="body2" 
+                                    sx={{ textDecoration: 'none', fontWeight: 600, '&:hover': { color: 'primary.dark' } }}
+                                    onClick={(e) => { e.preventDefault(); alert("Password recovery is handled by your organization's IT department."); }}
+                                >
+                                    Forgot password?
+                                </Link>
+                            </Box>
+                        )}
 
-                        </Box>
+                        {error && (
+                            <Typography variant="body2" style={{ color: '#EF4444', marginTop: '8px', fontSize: '0.85rem', fontWeight: 500 }}>
+                                {error}
+                            </Typography>
+                        )}
+
+                        <Button
+                            type="submit"
+                            fullWidth
+                            variant="contained"
+                            sx={{ mt: 3, mb: 2 }}
+                        >
+                            {formState === 0 ? "Login" : "Register"}
+                        </Button>
                     </Box>
-                </Grid>
-            </Grid>
+                </Box>
+            </div>
 
             <Snackbar
-
                 open={open}
                 autoHideDuration={4000}
+                onClose={() => setOpen(false)}
                 message={message}
             />
-
         </ThemeProvider>
     );
 }
