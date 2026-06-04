@@ -71,7 +71,7 @@ export default function VideoMeetComponent() {
     // Collapsible side-by-side drawer components (Participants and Chat)
     let [showParticipants, setShowParticipants] = useState(false);
     let [copySuccess, setCopySuccess] = useState(false);
-    
+
     // Persistent theme tracking
     const [isDark, setIsDark] = useState(false);
 
@@ -314,10 +314,18 @@ export default function VideoMeetComponent() {
     }
 
     let getUserMedia = () => {
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            console.error("getUserMedia not supported or HTTPS required");
+            return;
+        }
+
         if ((video && videoAvailable) || (audio && audioAvailable)) {
-            navigator.mediaDevices.getUserMedia({ video: video, audio: audio })
+            navigator.mediaDevices.getUserMedia({
+                video: video,
+                audio: audio
+            })
                 .then(getUserMediaSuccess)
-                .then((stream) => { })
                 .catch((e) => console.log(e))
         } else {
             try {
@@ -326,7 +334,6 @@ export default function VideoMeetComponent() {
             } catch (e) { }
         }
     }
-
 
 
 
@@ -401,12 +408,14 @@ export default function VideoMeetComponent() {
 
 
     let connectToSocketServer = () => {
-        socketRef.current = io.connect(server_url, { secure: false })
+        socketRef.current = io(server_url, {
+            transports: ["websocket", "polling"]
+        })
 
         socketRef.current.on('signal', gotMessageFromServer)
 
         socketRef.current.on('connect', () => {
-            socketRef.current.emit('join-call', window.location.href)
+            socketRef.current.emit('join-call', window.location.pathname)
             socketIdRef.current = socketRef.current.id
 
             socketRef.current.on('chat-message', addMessage)
@@ -583,314 +592,314 @@ export default function VideoMeetComponent() {
         <ThemeProvider theme={theme}>
             <div>
 
-            {askForUsername === true ?
+                {askForUsername === true ?
 
-                <div className="lobbyContainer">
-                    <div className="lobbyCard">
-                        {/* Camera Preview on Left */}
-                        <div className="lobbyPreview">
-                            <div className="lobbyPreviewTitle">Green Room Preview</div>
-                            <div className="videoFrame">
-                                <video ref={localVideoref} autoPlay muted></video>
-                                <div className="videoOverlay">
-                                    {videoAvailable ? "Video stream online" : "Connecting camera..."}
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-                                <Button 
-                                    variant="outlined" 
-                                    color={videoAvailable ? "primary" : "error"}
-                                    startIcon={videoAvailable ? <VideocamIcon /> : <VideocamOffIcon />}
-                                    style={{ borderRadius: '12px', textTransform: 'none' }}
-                                    disabled
-                                >
-                                    {videoAvailable ? "Camera Active" : "No Camera"}
-                                </Button>
-                                <Button 
-                                    variant="outlined" 
-                                    color={audioAvailable ? "success" : "error"}
-                                    startIcon={audioAvailable ? <MicIcon /> : <MicOffIcon />}
-                                    style={{ borderRadius: '12px', textTransform: 'none' }}
-                                    disabled
-                                >
-                                    {audioAvailable ? "Microphone Active" : "No Mic"}
-                                </Button>
-                            </div>
-                        </div>
-
-                        {/* Join Controls on Right */}
-                        <div className="lobbyForm">
-                            <div 
-                                className="btn-back-home" 
-                                onClick={() => {
-                                    if (localStorage.getItem("token")) {
-                                        navigate("/home");
-                                    } else {
-                                        navigate("/");
-                                    }
-                                }}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: 'var(--text-secondary)', marginBottom: '1rem', width: 'fit-content' }}
-                            >
-                                <ArrowBackIcon style={{ fontSize: '0.9rem' }} />
-                                Back to Dashboard
-                            </div>
-                            <div>
-                                <h2>Enter Lobby</h2>
-                                <p style={{ color: '#64748B', fontSize: '0.9rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                    Room ID: <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#2563EB' }}>
-                                        {window.location.pathname.substring(1)}
-                                    </span>
-                                </p>
-                            </div>
-
-                            <TextField 
-                                id="outlined-basic" 
-                                label="Display Name" 
-                                value={username} 
-                                onChange={e => setUsername(e.target.value)} 
-                                variant="outlined" 
-                                fullWidth
-                                autoFocus
-                                placeholder="What should we call you?"
-                                InputProps={{
-                                    style: { borderRadius: '12px' }
-                                }}
-                                onKeyDown={e => { if (e.key === 'Enter') connect(); }}
-                            />
-                            
-                            <Button 
-                                variant="contained" 
-                                onClick={connect}
-                                style={{ 
-                                    borderRadius: '12px', 
-                                    padding: '0.8rem', 
-                                    fontWeight: 600,
-                                    textTransform: 'none',
-                                    backgroundColor: '#2563EB',
-                                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)' 
-                                }}
-                                fullWidth
-                            >
-                                Join Meeting Room
-                            </Button>
-                        </div>
-                    </div>
-                </div> :
-
-
-                <div className={styles.meetVideoContainer}>
-
-                    {/* Left Info Badges Overlay */}
-                    <div className={styles.meetingInfoBadge}>
-                        <div className={styles.meetingCodeBadge}>
-                            Room: {window.location.pathname.substring(1)}
-                        </div>
-                        <button className={styles.btnIconSm} title="Copy invitation link" onClick={copyMeetingCode}>
-                            <ContentCopyIcon style={{ fontSize: '1rem' }} />
-                        </button>
-                        <div className={styles.meetingTimerBadge}>
-                            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', marginRight: '0.25rem' }}></span>
-                            {formatTime(timer)}
-                        </div>
-                    </div>
-
-                    {showModal ? <div className={styles.chatRoom}>
-
-                        <div className={styles.chatContainer}>
-                            <div className={styles.chatHeader}>
-                                <h3>Meeting Chat</h3>
-                                <IconButton size="small" onClick={closeChat} style={{ color: 'white' }}>
-                                    <CloseIcon style={{ fontSize: '1.25rem' }} />
-                                </IconButton>
-                            </div>
-
-                            <div className={styles.chattingDisplay}>
-
-                                {messages.length !== 0 ? messages.map((item, index) => {
-                                    const isSelf = item.sender === username;
-                                    return (
-                                        <div 
-                                            className={`${styles.chatMessage} ${isSelf ? styles.self : ''}`} 
-                                            key={index}
-                                        >
-                                            <span className={styles.chatMessageSender}>
-                                                {isSelf ? 'You' : item.sender}
-                                            </span>
-                                            <div className={styles.chatMessageBubble}>
-                                                {item.data}
-                                            </div>
-                                        </div>
-                                    )
-                                }) : (
-                                    <div style={{ textAlign: 'center', color: '#64748B', fontSize: '0.85rem', marginTop: '2rem' }}>
-                                        No messages yet. Say hello to participants!
-                                    </div>
-                                )}
-
-
-                            </div>
-
-                            <div className={styles.chattingArea}>
-                                <input 
-                                    value={message} 
-                                    onChange={handleMessage} 
-                                    placeholder="Type a message..."
-                                    onKeyDown={e => { if (e.key === 'Enter') sendMessage(); }}
-                                />
-                                <button onClick={sendMessage}>Send</button>
-                            </div>
-
-
-                        </div>
-                    </div> : <></>}
-
-
-                    <div className={styles.buttonContainers}>
-                        <IconButton 
-                            onClick={handleVideo} 
-                            style={{ color: "white", padding: '10px' }}
-                            className={video === true ? styles.active : ''}
-                        >
-                            {(video === true) ? <VideocamIcon /> : <VideocamOffIcon style={{ color: '#EF4444' }} />}
-                        </IconButton>
-                        
-                        <IconButton 
-                            onClick={handleAudio} 
-                            style={{ color: "white", padding: '10px' }}
-                            className={audio === true ? styles.active : ''}
-                        >
-                            {audio === true ? <MicIcon /> : <MicOffIcon style={{ color: '#EF4444' }} />}
-                        </IconButton>
-
-                        {screenAvailable === true ?
-                            <IconButton 
-                                onClick={handleScreen} 
-                                style={{ color: "white", padding: '10px' }}
-                                className={screen === true ? styles.active : ''}
-                            >
-                                {screen === true ? <ScreenShareIcon /> : <StopScreenShareIcon />}
-                            </IconButton> : <></>}
-
-                        <Badge badgeContent={newMessages > 0 ? newMessages : null} max={999} color='primary'>
-                            <IconButton 
-                                onClick={toggleChat} 
-                                style={{ color: "white", padding: '10px' }}
-                                className={showModal ? styles.active : ''}
-                            >
-                                <ChatIcon />
-                            </IconButton>
-                        </Badge>
-
-                        <IconButton 
-                            onClick={toggleParticipants} 
-                            style={{ color: "white", padding: '10px' }}
-                            className={showParticipants ? styles.active : ''}
-                        >
-                            <PeopleIcon />
-                        </IconButton>
-
-                        <IconButton 
-                            onClick={handleEndCall} 
-                            style={{ padding: '10px' }}
-                            className={styles.danger}
-                        >
-                            <CallEndIcon />
-                        </IconButton>
-                    </div>
-
-
-                    {showParticipants && (
-                        <div className={styles.participantsRoom}>
-                            <div className={styles.chatHeader}>
-                                <h3>Participants ({videos.length + 1})</h3>
-                                <IconButton size="small" onClick={() => setShowParticipants(false)} style={{ color: 'white' }}>
-                                    <CloseIcon style={{ fontSize: '1.25rem' }} />
-                                </IconButton>
-                            </div>
-                            <div className={styles.participantsList}>
-                                <div className={styles.participantRow}>
-                                    <div className={styles.participantLeft}>
-                                        <div className={styles.participantAvatar}>
-                                            {username ? username.substring(0, 2).toUpperCase() : 'ME'}
-                                        </div>
-                                        <div className={styles.participantName}>
-                                            {username} (You)
-                                        </div>
+                    <div className="lobbyContainer">
+                        <div className="lobbyCard">
+                            {/* Camera Preview on Left */}
+                            <div className="lobbyPreview">
+                                <div className="lobbyPreviewTitle">Green Room Preview</div>
+                                <div className="videoFrame">
+                                    <video ref={localVideoref} autoPlay muted></video>
+                                    <div className="videoOverlay">
+                                        {videoAvailable ? "Video stream online" : "Connecting camera..."}
                                     </div>
                                 </div>
-                                {videos.map((vid) => (
-                                    <div className={styles.participantRow} key={vid.socketId}>
-                                        <div className={styles.participantLeft}>
-                                            <div className={styles.participantAvatar}>
-                                                G
-                                            </div>
-                                            <div className={styles.participantName}>
-                                                Guest ({vid.socketId.substring(0, 5)})
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className={`${styles.conferenceView} ${styles[videos.length + 1 <= 9 ? `participants-${videos.length + 1}` : 'participants-9'] || ''}`}>
-                        {/* Local Participant Frame */}
-                        <div>
-                            <video 
-                                className={styles.meetUserVideo} 
-                                ref={localVideoref} 
-                                autoPlay 
-                                muted
-                                style={{ display: video === true ? 'block' : 'none' }}
-                            ></video>
-                            {video !== true && (
-                                <div className={styles.fallbackContainer}>
-                                    <div className={styles.avatarFallback}>
-                                        {username ? username.substring(0, 2).toUpperCase() : 'ME'}
-                                    </div>
+                                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+                                    <Button
+                                        variant="outlined"
+                                        color={videoAvailable ? "primary" : "error"}
+                                        startIcon={videoAvailable ? <VideocamIcon /> : <VideocamOffIcon />}
+                                        style={{ borderRadius: '12px', textTransform: 'none' }}
+                                        disabled
+                                    >
+                                        {videoAvailable ? "Camera Active" : "No Camera"}
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        color={audioAvailable ? "success" : "error"}
+                                        startIcon={audioAvailable ? <MicIcon /> : <MicOffIcon />}
+                                        style={{ borderRadius: '12px', textTransform: 'none' }}
+                                        disabled
+                                    >
+                                        {audioAvailable ? "Microphone Active" : "No Mic"}
+                                    </Button>
                                 </div>
-                            )}
-                            <div className={styles.participantLabel}>
-                                You ({username})
-                                {audio !== true && <MicOffIcon style={{ color: '#EF4444', fontSize: '0.9rem' }} />}
                             </div>
-                        </div>
 
-                        {/* Remote Participant Frames */}
-                        {videos.map((vid) => (
-                            <div key={vid.socketId}>
-                                <video
-                                    data-socket={vid.socketId}
-                                    ref={ref => {
-                                        if (ref && vid.stream) {
-                                            ref.srcObject = vid.stream;
+                            {/* Join Controls on Right */}
+                            <div className="lobbyForm">
+                                <div
+                                    className="btn-back-home"
+                                    onClick={() => {
+                                        if (localStorage.getItem("token")) {
+                                            navigate("/home");
+                                        } else {
+                                            navigate("/");
                                         }
                                     }}
-                                    autoPlay
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: 'var(--text-secondary)', marginBottom: '1rem', width: 'fit-content' }}
                                 >
-                                </video>
+                                    <ArrowBackIcon style={{ fontSize: '0.9rem' }} />
+                                    Back to Dashboard
+                                </div>
+                                <div>
+                                    <h2>Enter Lobby</h2>
+                                    <p style={{ color: '#64748B', fontSize: '0.9rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                        Room ID: <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#2563EB' }}>
+                                            {window.location.pathname.substring(1)}
+                                        </span>
+                                    </p>
+                                </div>
+
+                                <TextField
+                                    id="outlined-basic"
+                                    label="Display Name"
+                                    value={username}
+                                    onChange={e => setUsername(e.target.value)}
+                                    variant="outlined"
+                                    fullWidth
+                                    autoFocus
+                                    placeholder="What should we call you?"
+                                    InputProps={{
+                                        style: { borderRadius: '12px' }
+                                    }}
+                                    onKeyDown={e => { if (e.key === 'Enter') connect(); }}
+                                />
+
+                                <Button
+                                    variant="contained"
+                                    onClick={connect}
+                                    style={{
+                                        borderRadius: '12px',
+                                        padding: '0.8rem',
+                                        fontWeight: 600,
+                                        textTransform: 'none',
+                                        backgroundColor: '#2563EB',
+                                        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
+                                    }}
+                                    fullWidth
+                                >
+                                    Join Meeting Room
+                                </Button>
+                            </div>
+                        </div>
+                    </div> :
+
+
+                    <div className={styles.meetVideoContainer}>
+
+                        {/* Left Info Badges Overlay */}
+                        <div className={styles.meetingInfoBadge}>
+                            <div className={styles.meetingCodeBadge}>
+                                Room: {window.location.pathname.substring(1)}
+                            </div>
+                            <button className={styles.btnIconSm} title="Copy invitation link" onClick={copyMeetingCode}>
+                                <ContentCopyIcon style={{ fontSize: '1rem' }} />
+                            </button>
+                            <div className={styles.meetingTimerBadge}>
+                                <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', marginRight: '0.25rem' }}></span>
+                                {formatTime(timer)}
+                            </div>
+                        </div>
+
+                        {showModal ? <div className={styles.chatRoom}>
+
+                            <div className={styles.chatContainer}>
+                                <div className={styles.chatHeader}>
+                                    <h3>Meeting Chat</h3>
+                                    <IconButton size="small" onClick={closeChat} style={{ color: 'white' }}>
+                                        <CloseIcon style={{ fontSize: '1.25rem' }} />
+                                    </IconButton>
+                                </div>
+
+                                <div className={styles.chattingDisplay}>
+
+                                    {messages.length !== 0 ? messages.map((item, index) => {
+                                        const isSelf = item.sender === username;
+                                        return (
+                                            <div
+                                                className={`${styles.chatMessage} ${isSelf ? styles.self : ''}`}
+                                                key={index}
+                                            >
+                                                <span className={styles.chatMessageSender}>
+                                                    {isSelf ? 'You' : item.sender}
+                                                </span>
+                                                <div className={styles.chatMessageBubble}>
+                                                    {item.data}
+                                                </div>
+                                            </div>
+                                        )
+                                    }) : (
+                                        <div style={{ textAlign: 'center', color: '#64748B', fontSize: '0.85rem', marginTop: '2rem' }}>
+                                            No messages yet. Say hello to participants!
+                                        </div>
+                                    )}
+
+
+                                </div>
+
+                                <div className={styles.chattingArea}>
+                                    <input
+                                        value={message}
+                                        onChange={handleMessage}
+                                        placeholder="Type a message..."
+                                        onKeyDown={e => { if (e.key === 'Enter') sendMessage(); }}
+                                    />
+                                    <button onClick={sendMessage}>Send</button>
+                                </div>
+
+
+                            </div>
+                        </div> : <></>}
+
+
+                        <div className={styles.buttonContainers}>
+                            <IconButton
+                                onClick={handleVideo}
+                                style={{ color: "white", padding: '10px' }}
+                                className={video === true ? styles.active : ''}
+                            >
+                                {(video === true) ? <VideocamIcon /> : <VideocamOffIcon style={{ color: '#EF4444' }} />}
+                            </IconButton>
+
+                            <IconButton
+                                onClick={handleAudio}
+                                style={{ color: "white", padding: '10px' }}
+                                className={audio === true ? styles.active : ''}
+                            >
+                                {audio === true ? <MicIcon /> : <MicOffIcon style={{ color: '#EF4444' }} />}
+                            </IconButton>
+
+                            {screenAvailable === true ?
+                                <IconButton
+                                    onClick={handleScreen}
+                                    style={{ color: "white", padding: '10px' }}
+                                    className={screen === true ? styles.active : ''}
+                                >
+                                    {screen === true ? <ScreenShareIcon /> : <StopScreenShareIcon />}
+                                </IconButton> : <></>}
+
+                            <Badge badgeContent={newMessages > 0 ? newMessages : null} max={999} color='primary'>
+                                <IconButton
+                                    onClick={toggleChat}
+                                    style={{ color: "white", padding: '10px' }}
+                                    className={showModal ? styles.active : ''}
+                                >
+                                    <ChatIcon />
+                                </IconButton>
+                            </Badge>
+
+                            <IconButton
+                                onClick={toggleParticipants}
+                                style={{ color: "white", padding: '10px' }}
+                                className={showParticipants ? styles.active : ''}
+                            >
+                                <PeopleIcon />
+                            </IconButton>
+
+                            <IconButton
+                                onClick={handleEndCall}
+                                style={{ padding: '10px' }}
+                                className={styles.danger}
+                            >
+                                <CallEndIcon />
+                            </IconButton>
+                        </div>
+
+
+                        {showParticipants && (
+                            <div className={styles.participantsRoom}>
+                                <div className={styles.chatHeader}>
+                                    <h3>Participants ({videos.length + 1})</h3>
+                                    <IconButton size="small" onClick={() => setShowParticipants(false)} style={{ color: 'white' }}>
+                                        <CloseIcon style={{ fontSize: '1.25rem' }} />
+                                    </IconButton>
+                                </div>
+                                <div className={styles.participantsList}>
+                                    <div className={styles.participantRow}>
+                                        <div className={styles.participantLeft}>
+                                            <div className={styles.participantAvatar}>
+                                                {username ? username.substring(0, 2).toUpperCase() : 'ME'}
+                                            </div>
+                                            <div className={styles.participantName}>
+                                                {username} (You)
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {videos.map((vid) => (
+                                        <div className={styles.participantRow} key={vid.socketId}>
+                                            <div className={styles.participantLeft}>
+                                                <div className={styles.participantAvatar}>
+                                                    G
+                                                </div>
+                                                <div className={styles.participantName}>
+                                                    Guest ({vid.socketId.substring(0, 5)})
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className={`${styles.conferenceView} ${styles[videos.length + 1 <= 9 ? `participants-${videos.length + 1}` : 'participants-9'] || ''}`}>
+                            {/* Local Participant Frame */}
+                            <div>
+                                <video
+                                    className={styles.meetUserVideo}
+                                    ref={localVideoref}
+                                    autoPlay
+                                    muted
+                                    style={{ display: video === true ? 'block' : 'none' }}
+                                ></video>
+                                {video !== true && (
+                                    <div className={styles.fallbackContainer}>
+                                        <div className={styles.avatarFallback}>
+                                            {username ? username.substring(0, 2).toUpperCase() : 'ME'}
+                                        </div>
+                                    </div>
+                                )}
                                 <div className={styles.participantLabel}>
-                                    Guest ({vid.socketId.substring(0, 5)})
+                                    You ({username})
+                                    {audio !== true && <MicOffIcon style={{ color: '#EF4444', fontSize: '0.9rem' }} />}
                                 </div>
                             </div>
 
-                        ))}
+                            {/* Remote Participant Frames */}
+                            {videos.map((vid) => (
+                                <div key={vid.socketId}>
+                                    <video
+                                        data-socket={vid.socketId}
+                                        ref={ref => {
+                                            if (ref && vid.stream) {
+                                                ref.srcObject = vid.stream;
+                                            }
+                                        }}
+                                        autoPlay
+                                    >
+                                    </video>
+                                    <div className={styles.participantLabel}>
+                                        Guest ({vid.socketId.substring(0, 5)})
+                                    </div>
+                                </div>
+
+                            ))}
+
+                        </div>
 
                     </div>
 
-                </div>
+                }
 
-            }
+                <Snackbar
+                    open={copySuccess}
+                    autoHideDuration={4000}
+                    onClose={() => setCopySuccess(false)}
+                    message="Meeting link copied to clipboard!"
+                />
 
-            <Snackbar
-                open={copySuccess}
-                autoHideDuration={4000}
-                onClose={() => setCopySuccess(false)}
-                message="Meeting link copied to clipboard!"
-            />
-
-        </div>
+            </div>
         </ThemeProvider>
     )
 }
