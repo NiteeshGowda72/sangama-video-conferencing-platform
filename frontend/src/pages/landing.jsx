@@ -11,10 +11,37 @@ import SecurityIcon from '@mui/icons-material/Security';
 import DevicesIcon from '@mui/icons-material/Devices';
 import SpeedIcon from '@mui/icons-material/Speed';
 import CloudQueueIcon from '@mui/icons-material/CloudQueue';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
 
 
 export default function LandingPage() {
     const navigate = useNavigate();
+
+    const [isDark, setIsDark] = React.useState(false);
+
+    React.useEffect(() => {
+        const savedTheme = localStorage.getItem("theme");
+        if (savedTheme === "dark") {
+            document.body.classList.add("dark-theme");
+            setIsDark(true);
+        } else {
+            document.body.classList.remove("dark-theme");
+            setIsDark(false);
+        }
+    }, []);
+
+    const toggleTheme = () => {
+        if (document.body.classList.contains("dark-theme")) {
+            document.body.classList.remove("dark-theme");
+            localStorage.setItem("theme", "light");
+            setIsDark(false);
+        } else {
+            document.body.classList.add("dark-theme");
+            localStorage.setItem("theme", "dark");
+            setIsDark(true);
+        }
+    };
 
     // Check auth status for CTA buttons
     const handleStartAction = () => {
@@ -48,6 +75,9 @@ export default function LandingPage() {
                     <a href="#why-us">Security</a>
                     <a href="#contact">Contact</a>
                     
+                    <button className="btn-theme-toggle" onClick={toggleTheme} title="Toggle dark mode" style={{ margin: 0 }}>
+                        {isDark ? <LightModeIcon style={{ fontSize: '1.25rem' }} /> : <DarkModeIcon style={{ fontSize: '1.25rem' }} />}
+                    </button>
                     <p onClick={() => navigate("/auth")} style={{ margin: 0 }}>Sign In</p>
                     <button className="btn-primary" onClick={() => navigate("/auth")}>
                         Get Started
@@ -75,23 +105,23 @@ export default function LandingPage() {
                     </div>
                 </div>
 
-                {/* Statistics Cards */}
+                {/* Technology Stack Grid */}
                 <div className="statsGrid">
                     <div className="statCard">
-                        <h3>10M+</h3>
-                        <p>Meetings Hosted</p>
+                        <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--primary)', marginBottom: '0.4rem' }}>React</h3>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Frontend Interface</p>
                     </div>
                     <div className="statCard">
-                        <h3>5M+</h3>
-                        <p>Active Users</p>
+                        <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--primary)', marginBottom: '0.4rem' }}>Node.js & Express</h3>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>REST Server API</p>
                     </div>
                     <div className="statCard">
-                        <h3>50k+</h3>
-                        <p>Organizations Trust Us</p>
+                        <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--primary)', marginBottom: '0.4rem' }}>Socket.IO & WebRTC</h3>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Real-Time Video Stream</p>
                     </div>
                     <div className="statCard">
-                        <h3>1B+</h3>
-                        <p>Meeting Minutes</p>
+                        <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--primary)', marginBottom: '0.4rem' }}>MongoDB & Mongoose</h3>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>User activity logs</p>
                     </div>
                 </div>
             </main>

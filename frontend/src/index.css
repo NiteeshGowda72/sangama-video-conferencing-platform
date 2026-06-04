@@ -27,6 +27,14 @@
   --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+body.dark-theme {
+  --background: #0B0F19;
+  --surface: #151D30;
+  --border: #242F47;
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+}
+
 * {
   margin: 0;
   padding: 0;

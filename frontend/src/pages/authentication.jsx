@@ -14,49 +14,78 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-
-// Design theme override for inputs and buttons
-const theme = createTheme({
-    palette: {
-        primary: {
-            main: '#2563EB',
-            dark: '#1D4ED8',
-        },
-        background: {
-            default: '#F8FAFC',
-            paper: '#FFFFFF',
-        },
-        text: {
-            primary: '#0F172A',
-            secondary: '#64748B',
-        }
-    },
-    typography: {
-        fontFamily: "'Inter', sans-serif",
-    },
-    components: {
-        MuiButton: {
-            styleOverrides: {
-                root: {
-                    borderRadius: '12px',
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    padding: '0.75rem 1rem',
-                }
-            }
-        },
-        MuiOutlinedInput: {
-            styleOverrides: {
-                root: {
-                    borderRadius: '12px',
-                }
-            }
-        }
-    }
-});
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
 
 export default function Authentication() {
     const navigate = useNavigate();
+    const [isDark, setIsDark] = React.useState(false);
+
+    React.useEffect(() => {
+        const savedTheme = localStorage.getItem("theme");
+        if (savedTheme === "dark") {
+            document.body.classList.add("dark-theme");
+            setIsDark(true);
+        } else {
+            document.body.classList.remove("dark-theme");
+            setIsDark(false);
+        }
+    }, []);
+
+    const toggleTheme = () => {
+        if (document.body.classList.contains("dark-theme")) {
+            document.body.classList.remove("dark-theme");
+            localStorage.setItem("theme", "light");
+            setIsDark(false);
+        } else {
+            document.body.classList.add("dark-theme");
+            localStorage.setItem("theme", "dark");
+            setIsDark(true);
+        }
+    };
+
+    const theme = React.useMemo(() => createTheme({
+        palette: {
+            mode: isDark ? 'dark' : 'light',
+            primary: {
+                main: '#2563EB',
+                dark: '#1D4ED8',
+            },
+            ...(isDark ? {} : {
+                background: {
+                    default: '#F8FAFC',
+                    paper: '#FFFFFF',
+                },
+                text: {
+                    primary: '#0F172A',
+                    secondary: '#64748B',
+                }
+            })
+        },
+        typography: {
+            fontFamily: "'Inter', sans-serif",
+        },
+        components: {
+            MuiButton: {
+                styleOverrides: {
+                    root: {
+                        borderRadius: '12px',
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        padding: '0.75rem 1rem',
+                    }
+                }
+            },
+            MuiOutlinedInput: {
+                styleOverrides: {
+                    root: {
+                        borderRadius: '12px',
+                    }
+                }
+            }
+        }
+    }), [isDark]);
+
     const [username, setUsername] = React.useState("");
     const [password, setPassword] = React.useState("");
     const [name, setName] = React.useState("");
@@ -105,8 +134,8 @@ export default function Authentication() {
         <ThemeProvider theme={theme}>
             <div className="authContainer">
                 <Box className="authCard">
-                    {/* Back Navigation */}
-                    <div style={{ alignSelf: 'flex-start', marginBottom: '1.25rem' }}>
+                    {/* Back Navigation & Theme Toggle */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '1.25rem' }}>
                         <Link 
                             href="#" 
                             onClick={(e) => { e.preventDefault(); navigate("/"); }}
@@ -124,6 +153,10 @@ export default function Authentication() {
                             <ArrowBackIcon style={{ fontSize: '1rem' }} />
                             Back to Home
                         </Link>
+                        
+                        <button className="btn-theme-toggle" type="button" onClick={toggleTheme} title="Toggle dark mode" style={{ margin: 0 }}>
+                            {isDark ? <LightModeIcon style={{ fontSize: '1.15rem' }} /> : <DarkModeIcon style={{ fontSize: '1.15rem' }} />}
+                        </button>
                     </div>
 
                     {/* Header Logo */}

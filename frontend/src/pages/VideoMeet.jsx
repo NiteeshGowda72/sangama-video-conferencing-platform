@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom';
 import io from "socket.io-client";
-import { Badge, IconButton, TextField } from '@mui/material';
-import { Button } from '@mui/material';
+import { Badge, IconButton, TextField, Button, Snackbar } from '@mui/material';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import VideocamOffIcon from '@mui/icons-material/VideocamOff'
 import styles from "../styles/videoComponent.module.css";
@@ -13,6 +14,8 @@ import StopScreenShareIcon from '@mui/icons-material/StopScreenShare'
 import ChatIcon from '@mui/icons-material/Chat'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CloseIcon from '@mui/icons-material/Close';
+import PeopleIcon from '@mui/icons-material/People';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import server from '../environment';
 
 const server_url = server;
@@ -26,6 +29,7 @@ const peerConfigConnections = {
 }
 
 export default function VideoMeetComponent() {
+    const navigate = useNavigate();
 
     var socketRef = useRef();
     let socketIdRef = useRef();
@@ -42,7 +46,7 @@ export default function VideoMeetComponent() {
 
     let [screen, setScreen] = useState();
 
-    let [showModal, setModal] = useState(true);
+    let [showModal, setModal] = useState(false); // default collapsible chat panel to false (hidden by default)
     const showModalRef = useRef(showModal);
     useEffect(() => {
         showModalRef.current = showModal;
@@ -63,6 +67,66 @@ export default function VideoMeetComponent() {
     const videoRef = useRef([])
 
     let [videos, setVideos] = useState([])
+
+    // Collapsible side-by-side drawer components (Participants and Chat)
+    let [showParticipants, setShowParticipants] = useState(false);
+    let [copySuccess, setCopySuccess] = useState(false);
+    
+    // Persistent theme tracking
+    const [isDark, setIsDark] = useState(false);
+
+    useEffect(() => {
+        const savedTheme = localStorage.getItem("theme");
+        if (savedTheme === "dark") {
+            document.body.classList.add("dark-theme");
+            setIsDark(true);
+        } else {
+            document.body.classList.remove("dark-theme");
+            setIsDark(false);
+        }
+    }, []);
+
+    const theme = React.useMemo(() => createTheme({
+        palette: {
+            mode: isDark ? 'dark' : 'light',
+            primary: {
+                main: '#2563EB',
+                dark: '#1D4ED8',
+            },
+            ...(isDark ? {} : {
+                background: {
+                    default: '#F8FAFC',
+                    paper: '#FFFFFF',
+                },
+                text: {
+                    primary: '#0F172A',
+                    secondary: '#64748B',
+                }
+            })
+        },
+        typography: {
+            fontFamily: "'Inter', sans-serif",
+        },
+        components: {
+            MuiButton: {
+                styleOverrides: {
+                    root: {
+                        borderRadius: '12px',
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        padding: '0.75rem 1rem',
+                    }
+                }
+            },
+            MuiOutlinedInput: {
+                styleOverrides: {
+                    root: {
+                        borderRadius: '12px',
+                    }
+                }
+            }
+        }
+    }), [isDark]);
 
     // Meeting Session Timer State
     const [timer, setTimer] = useState(0);
@@ -87,7 +151,28 @@ export default function VideoMeetComponent() {
 
     const copyMeetingCode = () => {
         navigator.clipboard.writeText(window.location.href);
-        alert("Meeting link copied to clipboard!");
+        setCopySuccess(true);
+    };
+
+    const toggleChat = () => {
+        setModal(prev => {
+            const next = !prev;
+            if (next) {
+                setShowParticipants(false);
+            }
+            return next;
+        });
+        setNewMessages(0);
+    };
+
+    const toggleParticipants = () => {
+        setShowParticipants(prev => {
+            const next = !prev;
+            if (next) {
+                setModal(false);
+            }
+            return next;
+        });
     };
 
     // TODO
@@ -455,10 +540,6 @@ export default function VideoMeetComponent() {
         }
     }
 
-    let openChat = () => {
-        setModal(true);
-        setNewMessages(0);
-    }
     let closeChat = () => {
         setModal(false);
     }
@@ -499,7 +580,8 @@ export default function VideoMeetComponent() {
 
 
     return (
-        <div>
+        <ThemeProvider theme={theme}>
+            <div>
 
             {askForUsername === true ?
 
@@ -538,6 +620,20 @@ export default function VideoMeetComponent() {
 
                         {/* Join Controls on Right */}
                         <div className="lobbyForm">
+                            <div 
+                                className="btn-back-home" 
+                                onClick={() => {
+                                    if (localStorage.getItem("token")) {
+                                        navigate("/home");
+                                    } else {
+                                        navigate("/");
+                                    }
+                                }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: 'var(--text-secondary)', marginBottom: '1rem', width: 'fit-content' }}
+                            >
+                                <ArrowBackIcon style={{ fontSize: '0.9rem' }} />
+                                Back to Dashboard
+                            </div>
                             <div>
                                 <h2>Enter Lobby</h2>
                                 <p style={{ color: '#64748B', fontSize: '0.9rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -677,18 +773,21 @@ export default function VideoMeetComponent() {
 
                         <Badge badgeContent={newMessages > 0 ? newMessages : null} max={999} color='primary'>
                             <IconButton 
-                                onClick={() => {
-                                    setModal(!showModal);
-                                    if (!showModal) {
-                                        setNewMessages(0);
-                                    }
-                                }} 
+                                onClick={toggleChat} 
                                 style={{ color: "white", padding: '10px' }}
                                 className={showModal ? styles.active : ''}
                             >
                                 <ChatIcon />
                             </IconButton>
                         </Badge>
+
+                        <IconButton 
+                            onClick={toggleParticipants} 
+                            style={{ color: "white", padding: '10px' }}
+                            className={showParticipants ? styles.active : ''}
+                        >
+                            <PeopleIcon />
+                        </IconButton>
 
                         <IconButton 
                             onClick={handleEndCall} 
@@ -700,7 +799,42 @@ export default function VideoMeetComponent() {
                     </div>
 
 
-                    <div className={styles.conferenceView}>
+                    {showParticipants && (
+                        <div className={styles.participantsRoom}>
+                            <div className={styles.chatHeader}>
+                                <h3>Participants ({videos.length + 1})</h3>
+                                <IconButton size="small" onClick={() => setShowParticipants(false)} style={{ color: 'white' }}>
+                                    <CloseIcon style={{ fontSize: '1.25rem' }} />
+                                </IconButton>
+                            </div>
+                            <div className={styles.participantsList}>
+                                <div className={styles.participantRow}>
+                                    <div className={styles.participantLeft}>
+                                        <div className={styles.participantAvatar}>
+                                            {username ? username.substring(0, 2).toUpperCase() : 'ME'}
+                                        </div>
+                                        <div className={styles.participantName}>
+                                            {username} (You)
+                                        </div>
+                                    </div>
+                                </div>
+                                {videos.map((vid) => (
+                                    <div className={styles.participantRow} key={vid.socketId}>
+                                        <div className={styles.participantLeft}>
+                                            <div className={styles.participantAvatar}>
+                                                G
+                                            </div>
+                                            <div className={styles.participantName}>
+                                                Guest ({vid.socketId.substring(0, 5)})
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className={`${styles.conferenceView} ${styles[videos.length + 1 <= 9 ? `participants-${videos.length + 1}` : 'participants-9'] || ''}`}>
                         {/* Local Participant Frame */}
                         <div>
                             <video 
@@ -749,6 +883,14 @@ export default function VideoMeetComponent() {
 
             }
 
+            <Snackbar
+                open={copySuccess}
+                autoHideDuration={4000}
+                onClose={() => setCopySuccess(false)}
+                message="Meeting link copied to clipboard!"
+            />
+
         </div>
+        </ThemeProvider>
     )
 }

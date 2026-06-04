@@ -6,6 +6,8 @@ import VideocamIcon from '@mui/icons-material/Videocam';
 import HistoryToggleOffIcon from '@mui/icons-material/HistoryToggleOff';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
 
 import { Button } from '@mui/material';
 
@@ -13,8 +15,32 @@ export default function History() {
     const { getHistoryOfUser } = useContext(AuthContext);
     const [meetings, setMeetings] = useState([])
     const [loading, setLoading] = useState(true);
+    const [isDark, setIsDark] = useState(false);
 
     const routeTo = useNavigate();
+
+    useEffect(() => {
+        const savedTheme = localStorage.getItem("theme");
+        if (savedTheme === "dark") {
+            document.body.classList.add("dark-theme");
+            setIsDark(true);
+        } else {
+            document.body.classList.remove("dark-theme");
+            setIsDark(false);
+        }
+    }, []);
+
+    const toggleTheme = () => {
+        if (document.body.classList.contains("dark-theme")) {
+            document.body.classList.remove("dark-theme");
+            localStorage.setItem("theme", "light");
+            setIsDark(false);
+        } else {
+            document.body.classList.add("dark-theme");
+            localStorage.setItem("theme", "dark");
+            setIsDark(true);
+        }
+    };
 
     useEffect(() => {
         const fetchHistory = async () => {
@@ -50,6 +76,9 @@ export default function History() {
                     </h2>
                 </div>
                 <div className="dashboardNavRight">
+                    <button className="btn-theme-toggle" onClick={toggleTheme} title="Toggle dark mode" style={{ margin: 0 }}>
+                        {isDark ? <LightModeIcon style={{ fontSize: '1.25rem' }} /> : <DarkModeIcon style={{ fontSize: '1.25rem' }} />}
+                    </button>
                     <Button 
                         startIcon={<HomeIcon />} 
                         onClick={() => routeTo("/home")}

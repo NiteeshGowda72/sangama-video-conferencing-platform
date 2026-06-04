@@ -12,6 +12,10 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import GroupIcon from '@mui/icons-material/Group';
 import LogoutIcon from '@mui/icons-material/Logout';
 import HistoryToggleOffIcon from '@mui/icons-material/HistoryToggleOff';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import CloseIcon from '@mui/icons-material/Close';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { AuthContext } from '../contexts/AuthContext';
 
 function HomeComponent() {
@@ -21,6 +25,33 @@ function HomeComponent() {
     const [loadingHistory, setLoadingHistory] = useState(true);
 
     const { addToUserHistory, getHistoryOfUser } = useContext(AuthContext);
+
+    const [isDark, setIsDark] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [createdRoomCode, setCreatedRoomCode] = useState("");
+
+    useEffect(() => {
+        const savedTheme = localStorage.getItem("theme");
+        if (savedTheme === "dark") {
+            document.body.classList.add("dark-theme");
+            setIsDark(true);
+        } else {
+            document.body.classList.remove("dark-theme");
+            setIsDark(false);
+        }
+    }, []);
+
+    const toggleTheme = () => {
+        if (document.body.classList.contains("dark-theme")) {
+            document.body.classList.remove("dark-theme");
+            localStorage.setItem("theme", "light");
+            setIsDark(false);
+        } else {
+            document.body.classList.add("dark-theme");
+            localStorage.setItem("theme", "dark");
+            setIsDark(true);
+        }
+    };
 
     // Fetch user history on mount
     useEffect(() => {
@@ -53,10 +84,12 @@ function HomeComponent() {
         const randomCode = generateRandomCode();
         try {
             await addToUserHistory(randomCode);
-            navigate(`/${randomCode}`);
+            setCreatedRoomCode(randomCode);
+            setShowCreateModal(true);
         } catch (e) {
             console.error("Error initiating meeting:", e);
-            navigate(`/${randomCode}`); // fallback navigate anyway
+            setCreatedRoomCode(randomCode);
+            setShowCreateModal(true);
         }
     };
 
@@ -64,20 +97,20 @@ function HomeComponent() {
         if (!meetingCode.trim()) return;
         try {
             await addToUserHistory(meetingCode);
-            navigate(`/${meetingCode}`);
+            navigate(`/meeting/${meetingCode}`);
         } catch (e) {
             console.error("Error joining meeting:", e);
-            navigate(`/${meetingCode}`); // fallback
+            navigate(`/meeting/${meetingCode}`); // fallback
         }
     };
 
     const handleJoinAgain = async (code) => {
         try {
             await addToUserHistory(code);
-            navigate(`/${code}`);
+            navigate(`/meeting/${code}`);
         } catch (e) {
             console.error("Error joining again:", e);
-            navigate(`/${code}`);
+            navigate(`/meeting/${code}`);
         }
     };
 
@@ -106,15 +139,18 @@ function HomeComponent() {
                 </div>
 
                 <div className="dashboardNavRight">
-                    <Button 
-                        startIcon={<RestoreIcon />} 
+                    <button className="btn-theme-toggle" onClick={toggleTheme} title="Toggle dark mode" style={{ margin: 0 }}>
+                        {isDark ? <LightModeIcon style={{ fontSize: '1.25rem' }} /> : <DarkModeIcon style={{ fontSize: '1.25rem' }} />}
+                    </button>
+                    <Button
+                        startIcon={<RestoreIcon />}
                         onClick={() => navigate("/history")}
                         style={{ textTransform: 'none', fontWeight: 600, color: '#64748B' }}
                     >
                         History
                     </Button>
-                    <button 
-                        className="btn-logout" 
+                    <button
+                        className="btn-logout"
                         onClick={() => {
                             localStorage.removeItem("token");
                             navigate("/auth");
@@ -162,12 +198,12 @@ function HomeComponent() {
                                     <p>Enter a meeting code or invitation URL link to join an active call.</p>
                                 </div>
                                 <div className="actionForm">
-                                    <input 
-                                        type="text" 
-                                        placeholder="Enter meeting code..." 
-                                        value={meetingCode} 
+                                    <input
+                                        type="text"
+                                        placeholder="Enter meeting code..."
+                                        value={meetingCode}
                                         onChange={e => setMeetingCode(e.target.value)}
-                                        onKeyDown={e => { if(e.key === 'Enter') handleJoinVideoCall(); }}
+                                        onKeyDown={e => { if (e.key === 'Enter') handleJoinVideoCall(); }}
                                     />
                                     <button onClick={handleJoinVideoCall}>Join</button>
                                 </div>
@@ -191,7 +227,7 @@ function HomeComponent() {
                                                 <h4>Code: {meeting.meetingCode}</h4>
                                                 <p>Date: {formatDate(meeting.date)}</p>
                                             </div>
-                                            <button 
+                                            <button
                                                 className="btn-item-action"
                                                 onClick={() => handleJoinAgain(meeting.meetingCode)}
                                             >
@@ -210,45 +246,37 @@ function HomeComponent() {
 
                     {/* Right Column: Statistics & Schedule */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                        {/* Summary Stats Panel */}
-                        <div className="dashboardPanel" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <EqualizerIcon style={{ color: '#2563EB' }} />
-                                Performance Stats
-                            </h2>
+                        {/* Summary Stats Panel - Conditional on existing history logs */}
+                        {meetings.length > 0 && (
+                            <div className="dashboardPanel" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                                <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <EqualizerIcon style={{ color: '#2563EB' }} />
+                                    Your Activity Statistics
+                                </h2>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
-                                    <div className="boardStatIcon">
-                                        <VideocamIcon style={{ fontSize: '1.25rem' }} />
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+                                        <div className="boardStatIcon">
+                                            <VideocamIcon style={{ fontSize: '1.25rem' }} />
+                                        </div>
+                                        <div>
+                                            <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{totalMeetingsCount}</h4>
+                                            <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748B' }}>Total Meetings</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{totalMeetingsCount}</h4>
-                                        <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748B' }}>Total Meetings</p>
-                                    </div>
-                                </div>
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
-                                    <div className="boardStatIcon" style={{ color: '#10B981', background: 'rgba(16, 185, 129, 0.06)' }}>
-                                        <AccessTimeIcon style={{ fontSize: '1.25rem' }} />
-                                    </div>
-                                    <div>
-                                        <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{estimatedHours} hrs</h4>
-                                        <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748B' }}>Call Duration</p>
-                                    </div>
-                                </div>
-
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    <div className="boardStatIcon" style={{ color: '#F59E0B', background: 'rgba(245, 158, 11, 0.06)' }}>
-                                        <GroupIcon style={{ fontSize: '1.25rem' }} />
-                                    </div>
-                                    <div>
-                                        <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{uniqueRooms}</h4>
-                                        <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748B' }}>Unique Channels</p>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                        <div className="boardStatIcon" style={{ color: '#F59E0B', background: 'rgba(245, 158, 11, 0.06)' }}>
+                                            <GroupIcon style={{ fontSize: '1.25rem' }} />
+                                        </div>
+                                        <div>
+                                            <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{uniqueRooms}</h4>
+                                            <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748B' }}>Unique Channels</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Upcoming meetings card */}
                         <div className="dashboardPanel">
@@ -258,8 +286,8 @@ function HomeComponent() {
                             </h2>
                             <div className="emptyState" style={{ padding: '1rem 0' }}>
                                 <p style={{ fontSize: '0.85rem' }}>No upcoming events scheduled for today.</p>
-                                <Button 
-                                    size="small" 
+                                <Button
+                                    size="small"
                                     style={{ textTransform: 'none', fontWeight: 600, marginTop: '0.5rem' }}
                                     onClick={() => alert("Calendar integrations can be configured inside Settings.")}
                                 >
@@ -270,6 +298,38 @@ function HomeComponent() {
                     </div>
                 </div>
             </div>
+            {/* Google Meet Style Modal */}
+            {showCreateModal && (
+                <div className="meet-modal-overlay">
+                    <div className="meet-modal-card">
+                        <button className="meet-modal-close" onClick={() => setShowCreateModal(false)} title="Close">
+                            <CloseIcon style={{ fontSize: '1.25rem' }} />
+                        </button>
+                        <h3 className="meet-modal-title">Here's your meeting link</h3>
+                        <p className="meet-modal-desc">Copy this link and send it to people you want to meet with. Make sure you save it so you can use it later.</p>
+                        <div className="meet-modal-link-box">
+                            <span className="meet-modal-link">
+                                {window.location.origin + "/meeting/" + createdRoomCode}
+                            </span>
+                            <button
+                                className="meet-modal-copy-btn"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(window.location.origin + "/meeting/" + createdRoomCode);
+                                    alert("Link copied!");
+                                }}
+                                title="Copy link"
+                            >
+                                <ContentCopyIcon style={{ fontSize: '1.1rem' }} />
+                            </button>
+                        </div>
+                        <div className="meet-modal-actions">
+                            <button className="btn-full" onClick={() => navigate(`/meeting/${createdRoomCode}`)}>
+                                Join Meeting
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
