@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     LiveKitRoom,
@@ -25,7 +25,7 @@ import CallEndIcon from '@mui/icons-material/CallEnd';
 
 import styles from "../styles/videoComponent.module.css";
 
-function CustomConferenceRoom({ onLeave }) {
+function CustomConferenceRoom({ onLeaveRequest }) {
     const room = useRoomContext();
     const { localParticipant, isCameraEnabled, isMicrophoneEnabled, isScreenShareEnabled } = useLocalParticipant();
     const remoteParticipants = useRemoteParticipants();
@@ -115,17 +115,8 @@ function CustomConferenceRoom({ onLeave }) {
         setMessage("");
     };
 
-    const handleEndCall = async () => {
-        if (room) {
-            try {
-                await room.disconnect();
-            } catch (err) {
-                console.error("[LiveKit] Error disconnecting room:", err);
-            }
-        }
-        if (onLeave) {
-            onLeave();
-        }
+    const handleEndCall = () => {
+        onLeaveRequest();
     };
 
     const totalParticipants = 1 + remoteParticipants.length;
@@ -362,6 +353,9 @@ export default function LiveKitMeeting({
 }) {
     const navigate = useNavigate();
     const [isDark, setIsDark] = useState(false);
+    const [shouldConnect, setShouldConnect] = useState(true);
+    const leaveHandledRef = useRef(false);
+    const finalizedRef = useRef(false);
 
     // Load theme setting
     useEffect(() => {
@@ -417,25 +411,49 @@ export default function LiveKitMeeting({
         }
     }), [isDark]);
 
-    const handleDisconnected = () => {
+    const finalizeLeave = useCallback(() => {
+        if (finalizedRef.current) return;
+        finalizedRef.current = true;
+
         if (onLeave) {
             onLeave();
         } else {
             navigate("/home", { replace: true });
         }
-    };
+    }, [navigate, onLeave]);
+
+    // Single disconnect path: set connect=false so LiveKitRoom disconnects once,
+    // unpublishes tracks, and fires onDisconnected before we navigate away.
+    const requestDisconnect = useCallback(() => {
+        if (leaveHandledRef.current) return;
+        leaveHandledRef.current = true;
+        setShouldConnect(false);
+    }, []);
+
+    const handleLeaveRequest = useCallback(() => {
+        requestDisconnect();
+    }, [requestDisconnect]);
+
+    const handleDisconnected = useCallback(() => {
+        if (!leaveHandledRef.current) {
+            leaveHandledRef.current = true;
+            setShouldConnect(false);
+        }
+        finalizeLeave();
+    }, [finalizeLeave]);
 
     return (
         <ThemeProvider theme={theme}>
             <LiveKitRoom
                 token={token}
                 serverUrl={serverUrl}
-                connect={true}
+                connect={shouldConnect}
                 video={true}
                 audio={true}
+                options={{ disconnectOnPageLeave: true }}
                 onDisconnected={handleDisconnected}
             >
-                <CustomConferenceRoom onLeave={onLeave} />
+                <CustomConferenceRoom onLeaveRequest={handleLeaveRequest} />
                 <RoomAudioRenderer />
             </LiveKitRoom>
         </ThemeProvider>

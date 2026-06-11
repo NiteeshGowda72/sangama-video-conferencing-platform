@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { TextField, Button } from "@mui/material";
@@ -21,6 +21,17 @@ export default function MeetingRoom() {
         localStorage.getItem("username") || ""
     );
     const [loading, setLoading] = useState(false);
+    const leaveHandledRef = useRef(false);
+
+    const stopPreviewStream = useCallback(() => {
+        if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach((track) => track.stop());
+            localStreamRef.current = null;
+        }
+        if (localVideoRef.current) {
+            localVideoRef.current.srcObject = null;
+        }
+    }, []);
 
     // Green room media state
     const [videoAvailable, setVideoAvailable] = useState(false);
@@ -88,12 +99,9 @@ export default function MeetingRoom() {
         getPermissionsAndInitMedia();
 
         return () => {
-            if (localStreamRef.current) {
-                localStreamRef.current.getTracks().forEach(track => track.stop());
-                localStreamRef.current = null;
-            }
+            stopPreviewStream();
         };
-    }, [joined]);
+    }, [joined, stopPreviewStream]);
 
     const handleJoin = async () => {
         if (!username.trim()) {
@@ -105,10 +113,7 @@ export default function MeetingRoom() {
         localStorage.setItem("username", username);
 
         // Stop the lobby camera/mic tracks so LiveKit can request them without collision
-        if (localStreamRef.current) {
-            localStreamRef.current.getTracks().forEach(track => track.stop());
-            localStreamRef.current = null;
-        }
+        stopPreviewStream();
 
         try {
             const response = await axios.post(
@@ -129,19 +134,31 @@ export default function MeetingRoom() {
         }
     };
 
-    const handleLeaveMeeting = () => {
+    const handleLeaveMeeting = useCallback(() => {
+        if (leaveHandledRef.current) return;
+        leaveHandledRef.current = true;
+
+        stopPreviewStream();
         setToken(null);
         setJoined(false);
+
         if (localStorage.getItem("token")) {
             navigate("/home", { replace: true });
         } else {
             navigate("/", { replace: true });
         }
-    };
+    }, [navigate, stopPreviewStream]);
+
+    useEffect(() => {
+        return () => {
+            stopPreviewStream();
+        };
+    }, [stopPreviewStream]);
 
     if (joined && token) {
         return (
             <LiveKitMeeting
+                key={token}
                 token={token}
                 serverUrl={process.env.REACT_APP_LIVEKIT_URL}
                 onLeave={handleLeaveMeeting}
