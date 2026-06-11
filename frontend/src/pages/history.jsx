@@ -109,7 +109,7 @@ export default function History() {
                 <div className="dashboardPanel">
                     {loading ? (
                         <p style={{ color: '#64748B', fontSize: '0.95rem' }}>Retrieving your past logs...</p>
-                    ) : meetings.length !== 0 ? (
+                    ) : (Array.isArray(meetings) && meetings.length !== 0) ? (
                         <div className="meetingsList" style={{ gap: '1.25rem' }}>
                             {meetings.map((meeting, index) => (
                                 <div className="meetingItem" key={index} style={{ padding: '1.25rem' }}>

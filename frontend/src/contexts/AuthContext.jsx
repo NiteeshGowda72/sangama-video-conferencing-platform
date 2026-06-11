@@ -11,6 +11,17 @@ const client = axios.create({
     baseURL: `${server}/api/v1/users`
 })
 
+client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response && error.response.status === 401) {
+            localStorage.removeItem("token");
+            window.location.href = "/auth";
+        }
+        return Promise.reject(error);
+    }
+);
+
 
 export const AuthProvider = ({ children }) => {
 
@@ -59,28 +70,33 @@ export const AuthProvider = ({ children }) => {
     }
 
     const getHistoryOfUser = async () => {
+        const token = localStorage.getItem("token");
+        if (!token) return [];
         try {
             let request = await client.get("/get_all_activity", {
-                params: {
-                    token: localStorage.getItem("token")
-                }
+                params: { token }
             });
-            return request.data
-        } catch
-         (err) {
-            throw err;
+            if (request.status === 200 && Array.isArray(request.data)) {
+                return request.data;
+            }
+            return [];
+        } catch (err) {
+            console.error("Failed to load user activity history:", err);
+            return [];
         }
     }
 
     const addToUserHistory = async (meetingCode) => {
+        const token = localStorage.getItem("token");
+        if (!token) return;
         try {
             let request = await client.post("/add_to_activity", {
-                token: localStorage.getItem("token"),
+                token: token,
                 meeting_code: meetingCode
             });
-            return request
+            return request;
         } catch (e) {
-            throw e;
+            console.error("Failed to add meeting code to user history:", e);
         }
     }
 

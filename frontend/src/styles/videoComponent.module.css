@@ -52,7 +52,6 @@
     height: 100%;
     object-fit: cover;
     display: block;
-    transform: scaleX(-1); /* mirror camera feed */
 }
 
 /* Participant overlay info */
