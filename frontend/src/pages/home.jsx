@@ -8,7 +8,6 @@ import VideocamIcon from '@mui/icons-material/Videocam';
 import KeyboardIcon from '@mui/icons-material/Keyboard';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import EqualizerIcon from '@mui/icons-material/Equalizer';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import GroupIcon from '@mui/icons-material/Group';
 import LogoutIcon from '@mui/icons-material/Logout';
 import HistoryToggleOffIcon from '@mui/icons-material/HistoryToggleOff';
@@ -58,7 +57,7 @@ function HomeComponent() {
         const fetchHistory = async () => {
             try {
                 const history = await getHistoryOfUser();
-                setMeetings(history || []);
+                setMeetings(Array.isArray(history) ? history : []);
             } catch (e) {
                 console.error("Failed to load user meeting history:", e);
             } finally {
@@ -123,9 +122,10 @@ function HomeComponent() {
     };
 
     // Calculate real stats
-    const totalMeetingsCount = meetings.length;
-    const estimatedHours = (totalMeetingsCount * 0.6).toFixed(1);
-    const uniqueRooms = new Set(meetings.map(m => m.meetingCode)).size;
+    const totalMeetingsCount = Array.isArray(meetings) ? meetings.length : 0;
+    const uniqueRooms = (Array.isArray(meetings) && meetings.length > 0)
+        ? new Set(meetings.map(m => m.meetingCode)).size
+        : 0;
 
     return (
         <div className="dashboardContainer">
@@ -219,7 +219,7 @@ function HomeComponent() {
 
                             {loadingHistory ? (
                                 <p style={{ color: '#64748B', fontSize: '0.9rem' }}>Loading past meetings...</p>
-                            ) : meetings.length !== 0 ? (
+                            ) : (Array.isArray(meetings) && meetings.length !== 0) ? (
                                 <div className="meetingsList">
                                     {meetings.slice(0, 4).map((meeting, index) => (
                                         <div className="meetingItem" key={index}>
@@ -247,7 +247,7 @@ function HomeComponent() {
                     {/* Right Column: Statistics & Schedule */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                         {/* Summary Stats Panel - Conditional on existing history logs */}
-                        {meetings.length > 0 && (
+                        {Array.isArray(meetings) && meetings.length > 0 && (
                             <div className="dashboardPanel" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <EqualizerIcon style={{ color: '#2563EB' }} />

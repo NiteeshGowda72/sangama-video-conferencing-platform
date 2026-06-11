@@ -114,7 +114,6 @@ export default function Authentication() {
             }
             if (formState === 1) {
                 let result = await handleRegister(name, username, password);
-                console.log(result);
                 setUsername("");
                 setMessage(result);
                 setOpen(true);
@@ -124,7 +123,6 @@ export default function Authentication() {
                 setName("");
             }
         } catch (err) {
-            console.log(err);
             let errMsg = err.response?.data?.message || "An authentication error occurred. Please try again.";
             setError(errMsg);
         }

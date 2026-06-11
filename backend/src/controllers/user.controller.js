@@ -85,9 +85,15 @@ const getUserHistory = async (req, res) => {
     const { token } = req.query;
 
     try {
+        if (!token) {
+            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Token is required" });
+        }
         const user = await User.findOne({ token: token });
-        const meetings = await Meeting.find({ user_id: user.username })
-        res.json(meetings)
+        if (!user) {
+            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid session token" });
+        }
+        const meetings = await Meeting.find({ user_id: user.username }).sort({ date: -1 });
+        return res.json(meetings)
     } catch (e) {
         console.error(e);
 
@@ -102,7 +108,13 @@ const addToHistory = async (req, res) => {
     const { token, meeting_code } = req.body;
 
     try {
+        if (!token) {
+            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Token is required" });
+        }
         const user = await User.findOne({ token: token });
+        if (!user) {
+            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid session token" });
+        }
 
         const newMeeting = new Meeting({
             user_id: user.username,
@@ -111,7 +123,7 @@ const addToHistory = async (req, res) => {
 
         await newMeeting.save();
 
-        res.status(httpStatus.CREATED).json({ message: "Added code to history" })
+        return res.status(httpStatus.CREATED).json({ message: "Added code to history" })
     } catch (e) {
         console.error(e);
 

@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { AuthContext } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom';
+import withAuth from '../utils/withAuth';
 import HomeIcon from '@mui/icons-material/Home';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import HistoryToggleOffIcon from '@mui/icons-material/HistoryToggleOff';
@@ -11,7 +12,7 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 
 import { Button } from '@mui/material';
 
-export default function History() {
+function History() {
     const { getHistoryOfUser } = useContext(AuthContext);
     const [meetings, setMeetings] = useState([])
     const [loading, setLoading] = useState(true);
@@ -109,7 +110,7 @@ export default function History() {
                 <div className="dashboardPanel">
                     {loading ? (
                         <p style={{ color: '#64748B', fontSize: '0.95rem' }}>Retrieving your past logs...</p>
-                    ) : meetings.length !== 0 ? (
+                    ) : (Array.isArray(meetings) && meetings.length !== 0) ? (
                         <div className="meetingsList" style={{ gap: '1.25rem' }}>
                             {meetings.map((meeting, index) => (
                                 <div className="meetingItem" key={index} style={{ padding: '1.25rem' }}>
@@ -125,8 +126,8 @@ export default function History() {
                                     <button 
                                         className="btn-item-action"
                                         style={{ padding: '0.6rem 1.25rem', fontSize: '0.85rem' }}
-                                        onClick={async () => {
-                                            routeTo(`/${meeting.meetingCode}`);
+                                        onClick={() => {
+                                            routeTo(`/meeting/${meeting.meetingCode}`);
                                         }}
                                     >
                                         Reconnect
@@ -152,3 +153,5 @@ export default function History() {
         </div>
     )
 }
+
+export default withAuth(History);
