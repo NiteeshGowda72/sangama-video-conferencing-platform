@@ -17,6 +17,7 @@ export default function MeetingRoom() {
 
     const [token, setToken] = useState(null);
     const [joined, setJoined] = useState(false);
+    const [sessionKey, setSessionKey] = useState(0);
     const [username, setUsername] = useState(
         localStorage.getItem("username") || ""
     );
@@ -33,7 +34,6 @@ export default function MeetingRoom() {
         }
     }, []);
 
-    // Green room media state
     const [videoAvailable, setVideoAvailable] = useState(false);
     const [audioAvailable, setAudioAvailable] = useState(false);
     const localStreamRef = useRef(null);
@@ -45,6 +45,10 @@ export default function MeetingRoom() {
             el.srcObject = localStreamRef.current;
         }
     };
+
+    useEffect(() => {
+        leaveHandledRef.current = false;
+    }, [url]);
 
     useEffect(() => {
         if (joined) return;
@@ -59,7 +63,6 @@ export default function MeetingRoom() {
             let hasVideo = false;
             let hasAudio = false;
 
-            // Test camera access
             try {
                 const vStream = await navigator.mediaDevices.getUserMedia({ video: true });
                 vStream.getTracks().forEach(t => t.stop());
@@ -69,7 +72,6 @@ export default function MeetingRoom() {
                 setVideoAvailable(false);
             }
 
-            // Test microphone access
             try {
                 const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 aStream.getTracks().forEach(t => t.stop());
@@ -79,7 +81,6 @@ export default function MeetingRoom() {
                 setAudioAvailable(false);
             }
 
-            // Bind persistent preview stream
             try {
                 if (hasVideo || hasAudio) {
                     const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -111,8 +112,8 @@ export default function MeetingRoom() {
 
         setLoading(true);
         localStorage.setItem("username", username);
+        leaveHandledRef.current = false;
 
-        // Stop the lobby camera/mic tracks so LiveKit can request them without collision
         stopPreviewStream();
 
         try {
@@ -125,6 +126,7 @@ export default function MeetingRoom() {
             );
 
             setToken(response.data.token);
+            setSessionKey((k) => k + 1);
             setJoined(true);
         } catch (err) {
             console.error("[MeetingRoom] Error joining room:", err);
@@ -149,16 +151,10 @@ export default function MeetingRoom() {
         }
     }, [navigate, stopPreviewStream]);
 
-    useEffect(() => {
-        return () => {
-            stopPreviewStream();
-        };
-    }, [stopPreviewStream]);
-
     if (joined && token) {
         return (
             <LiveKitMeeting
-                key={token}
+                key={`${url}-${sessionKey}`}
                 token={token}
                 serverUrl={process.env.REACT_APP_LIVEKIT_URL}
                 onLeave={handleLeaveMeeting}
@@ -169,7 +165,6 @@ export default function MeetingRoom() {
     return (
         <div className="lobbyContainer">
             <div className="lobbyCard">
-                {/* Camera Preview on Left */}
                 <div className="lobbyPreview">
                     <div className="lobbyPreviewTitle">Green Room Preview</div>
                     <div className="videoFrame">
@@ -200,7 +195,6 @@ export default function MeetingRoom() {
                     </div>
                 </div>
 
-                {/* Join Controls on Right */}
                 <div className="lobbyForm">
                     <div
                         className="btn-back-home"

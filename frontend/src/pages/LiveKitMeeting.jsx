@@ -1,14 +1,15 @@
-import React, { useCallback, useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    LiveKitRoom,
+    RoomContext,
     RoomAudioRenderer,
     VideoTrack,
     useLocalParticipant,
     useRemoteParticipants,
     useRoomContext,
     useChat,
+    useSequentialRoomConnectDisconnect,
 } from "@livekit/components-react";
+import { ConnectionState, Room, RoomEvent } from "livekit-client";
 import { Badge, IconButton, Snackbar } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import VideocamIcon from '@mui/icons-material/Videocam';
@@ -25,14 +26,13 @@ import CallEndIcon from '@mui/icons-material/CallEnd';
 
 import styles from "../styles/videoComponent.module.css";
 
-function CustomConferenceRoom({ onLeaveRequest }) {
+function CustomConferenceRoom({ onLeaveRequest, isLeaving }) {
     const room = useRoomContext();
     const { localParticipant, isCameraEnabled, isMicrophoneEnabled, isScreenShareEnabled } = useLocalParticipant();
     const remoteParticipants = useRemoteParticipants();
     const { chatMessages, send } = useChat();
 
-    // UI Panel / overlay states
-    const [showModal, setModal] = useState(false); // Chat Drawer
+    const [showModal, setModal] = useState(false);
     const [showParticipants, setShowParticipants] = useState(false);
     const [copySuccess, setCopySuccess] = useState(false);
     const [message, setMessage] = useState("");
@@ -48,14 +48,12 @@ function CustomConferenceRoom({ onLeaveRequest }) {
         showModalRef.current = showModal;
     }, [showModal]);
 
-    // Check for screen sharing capability
     useEffect(() => {
         if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
             setScreenAvailable(true);
         }
     }, []);
 
-    // Unread messages counting logic
     useEffect(() => {
         if (chatMessages.length > prevMessagesCount.current) {
             const newMsgs = chatMessages.slice(prevMessagesCount.current);
@@ -67,7 +65,6 @@ function CustomConferenceRoom({ onLeaveRequest }) {
         }
     }, [chatMessages]);
 
-    // Ticking timer
     useEffect(() => {
         const interval = setInterval(() => {
             setTimer(prev => prev + 1);
@@ -116,7 +113,9 @@ function CustomConferenceRoom({ onLeaveRequest }) {
     };
 
     const handleEndCall = () => {
-        onLeaveRequest();
+        if (!isLeaving) {
+            onLeaveRequest();
+        }
     };
 
     const totalParticipants = 1 + remoteParticipants.length;
@@ -124,10 +123,9 @@ function CustomConferenceRoom({ onLeaveRequest }) {
 
     return (
         <div className={styles.meetVideoContainer}>
-            {/* Left Info Badges Overlay */}
             <div className={styles.meetingInfoBadge}>
                 <div className={styles.meetingCodeBadge}>
-                    Room: {room?.name || window.location.pathname.substring(1)}
+                    Room: {room?.name || window.location.pathname.split('/').pop()}
                 </div>
                 <button className={styles.btnIconSm} title="Copy invitation link" onClick={copyMeetingCode}>
                     <ContentCopyIcon style={{ fontSize: '1rem' }} />
@@ -138,7 +136,6 @@ function CustomConferenceRoom({ onLeaveRequest }) {
                 </div>
             </div>
 
-            {/* Chat Room Side Panel */}
             {showModal && (
                 <div className={styles.chatRoom}>
                     <div className={styles.chatContainer}>
@@ -186,7 +183,6 @@ function CustomConferenceRoom({ onLeaveRequest }) {
                 </div>
             )}
 
-            {/* Participants Side Panel */}
             {showParticipants && (
                 <div className={styles.participantsRoom}>
                     <div className={styles.chatHeader}>
@@ -196,7 +192,6 @@ function CustomConferenceRoom({ onLeaveRequest }) {
                         </IconButton>
                     </div>
                     <div className={styles.participantsList}>
-                        {/* Local Participant Row */}
                         <div className={styles.participantRow}>
                             <div className={styles.participantLeft}>
                                 <div className={styles.participantAvatar}>
@@ -207,7 +202,6 @@ function CustomConferenceRoom({ onLeaveRequest }) {
                                 </div>
                             </div>
                         </div>
-                        {/* Remote Participants Rows */}
                         {remoteParticipants.map((p) => (
                             <div className={styles.participantRow} key={p.sid || p.identity}>
                                 <div className={styles.participantLeft}>
@@ -224,12 +218,12 @@ function CustomConferenceRoom({ onLeaveRequest }) {
                 </div>
             )}
 
-            {/* Bottom Controls Bar */}
             <div className={styles.buttonContainers}>
                 <IconButton
                     onClick={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
                     style={{ color: "white", padding: '10px' }}
                     className={isCameraEnabled ? styles.active : ''}
+                    disabled={isLeaving}
                 >
                     {isCameraEnabled ? <VideocamIcon /> : <VideocamOffIcon style={{ color: '#EF4444' }} />}
                 </IconButton>
@@ -238,6 +232,7 @@ function CustomConferenceRoom({ onLeaveRequest }) {
                     onClick={() => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)}
                     style={{ color: "white", padding: '10px' }}
                     className={isMicrophoneEnabled ? styles.active : ''}
+                    disabled={isLeaving}
                 >
                     {isMicrophoneEnabled ? <MicIcon /> : <MicOffIcon style={{ color: '#EF4444' }} />}
                 </IconButton>
@@ -247,6 +242,7 @@ function CustomConferenceRoom({ onLeaveRequest }) {
                         onClick={() => localParticipant.setScreenShareEnabled(!isScreenShareEnabled)}
                         style={{ color: "white", padding: '10px' }}
                         className={isScreenShareEnabled ? styles.active : ''}
+                        disabled={isLeaving}
                     >
                         {isScreenShareEnabled ? <ScreenShareIcon /> : <StopScreenShareIcon />}
                     </IconButton>
@@ -257,6 +253,7 @@ function CustomConferenceRoom({ onLeaveRequest }) {
                         onClick={toggleChat}
                         style={{ color: "white", padding: '10px' }}
                         className={showModal ? styles.active : ''}
+                        disabled={isLeaving}
                     >
                         <ChatIcon />
                     </IconButton>
@@ -266,6 +263,7 @@ function CustomConferenceRoom({ onLeaveRequest }) {
                     onClick={toggleParticipants}
                     style={{ color: "white", padding: '10px' }}
                     className={showParticipants ? styles.active : ''}
+                    disabled={isLeaving}
                 >
                     <PeopleIcon />
                 </IconButton>
@@ -274,14 +272,13 @@ function CustomConferenceRoom({ onLeaveRequest }) {
                     onClick={handleEndCall}
                     style={{ padding: '10px' }}
                     className={styles.danger}
+                    disabled={isLeaving}
                 >
                     <CallEndIcon />
                 </IconButton>
             </div>
 
-            {/* Grid Conference Videos Layout */}
             <div className={`${styles.conferenceView} ${styles[gridClass] || ''}`}>
-                {/* Local Participant Card */}
                 <div>
                     {isCameraEnabled || isScreenShareEnabled ? (
                         <VideoTrack
@@ -305,7 +302,6 @@ function CustomConferenceRoom({ onLeaveRequest }) {
                     </div>
                 </div>
 
-                {/* Remote Participants Cards */}
                 {remoteParticipants.map((p) => {
                     const hasCamera = p.isCameraEnabled;
                     const hasScreenShare = p.isScreenShareEnabled;
@@ -349,15 +345,22 @@ function CustomConferenceRoom({ onLeaveRequest }) {
 export default function LiveKitMeeting({
     token,
     serverUrl,
-    onLeave
+    onLeave,
 }) {
-    const navigate = useNavigate();
     const [isDark, setIsDark] = useState(false);
-    const [shouldConnect, setShouldConnect] = useState(true);
-    const leaveHandledRef = useRef(false);
-    const finalizedRef = useRef(false);
+    const [isLeaving, setIsLeaving] = useState(false);
 
-    // Load theme setting
+    const leaveRequestedRef = useRef(false);
+    const onLeaveRef = useRef(onLeave);
+    onLeaveRef.current = onLeave;
+
+    const room = useMemo(
+        () => new Room({ disconnectOnPageLeave: false }),
+        []
+    );
+
+    const { connect, disconnect } = useSequentialRoomConnectDisconnect(room);
+
     useEffect(() => {
         const savedTheme = localStorage.getItem("theme");
         if (savedTheme === "dark") {
@@ -369,93 +372,93 @@ export default function LiveKitMeeting({
         }
     }, []);
 
-    const theme = React.useMemo(() => createTheme({
+    const theme = useMemo(() => createTheme({
         palette: {
             mode: isDark ? 'dark' : 'light',
-            primary: {
-                main: '#2563EB',
-                dark: '#1D4ED8',
-            },
-            ...(isDark ? {} : {
-                background: {
-                    default: '#F8FAFC',
-                    paper: '#FFFFFF',
-                },
-                text: {
-                    primary: '#0F172A',
-                    secondary: '#64748B',
-                }
-            })
+            primary: { main: '#2563EB', dark: '#1D4ED8' },
         },
-        typography: {
-            fontFamily: "'Inter', sans-serif",
-        },
-        components: {
-            MuiButton: {
-                styleOverrides: {
-                    root: {
-                        borderRadius: '12px',
-                        textTransform: 'none',
-                        fontWeight: 600,
-                        padding: '0.75rem 1rem',
-                    }
-                }
-            },
-            MuiOutlinedInput: {
-                styleOverrides: {
-                    root: {
-                        borderRadius: '12px',
-                    }
-                }
-            }
-        }
+        typography: { fontFamily: "'Inter', sans-serif" },
     }), [isDark]);
 
-    const finalizeLeave = useCallback(() => {
-        if (finalizedRef.current) return;
-        finalizedRef.current = true;
-
-        if (onLeave) {
-            onLeave();
-        } else {
-            navigate("/home", { replace: true });
+    const notifyLeaveComplete = useCallback(() => {
+        if (onLeaveRef.current) {
+            onLeaveRef.current();
         }
-    }, [navigate, onLeave]);
-
-    // Single disconnect path: set connect=false so LiveKitRoom disconnects once,
-    // unpublishes tracks, and fires onDisconnected before we navigate away.
-    const requestDisconnect = useCallback(() => {
-        if (leaveHandledRef.current) return;
-        leaveHandledRef.current = true;
-        setShouldConnect(false);
     }, []);
 
-    const handleLeaveRequest = useCallback(() => {
-        requestDisconnect();
-    }, [requestDisconnect]);
+    useEffect(() => {
+        if (!token || !serverUrl || !connect || !disconnect) return;
 
-    const handleDisconnected = useCallback(() => {
-        if (!leaveHandledRef.current) {
-            leaveHandledRef.current = true;
-            setShouldConnect(false);
+        let cancelled = false;
+        leaveRequestedRef.current = false;
+
+        const onConnected = () => {};
+
+        const onDisconnected = () => {
+            if (leaveRequestedRef.current) {
+                notifyLeaveComplete();
+            }
+        };
+
+        room.on(RoomEvent.Connected, onConnected);
+        room.on(RoomEvent.Disconnected, onDisconnected);
+
+        const start = async () => {
+            try {
+                await connect(serverUrl, token, { autoSubscribe: true });
+                if (cancelled) return;
+
+                await Promise.all([
+                    room.localParticipant.setMicrophoneEnabled(true),
+                    room.localParticipant.setCameraEnabled(true),
+                ]);
+            } catch (err) {
+                console.error("[LiveKit] Failed to connect or publish tracks:", err);
+            }
+        };
+
+        start();
+
+        return () => {
+            cancelled = true;
+            room.off(RoomEvent.Connected, onConnected);
+            room.off(RoomEvent.Disconnected, onDisconnected);
+
+            if (room.state !== ConnectionState.Disconnected) {
+                disconnect().catch((err) => {
+                    console.error("[LiveKit] Cleanup disconnect failed:", err);
+                });
+            }
+        };
+    }, [room, connect, disconnect, serverUrl, token, notifyLeaveComplete]);
+
+    const requestLeave = useCallback(async () => {
+        if (leaveRequestedRef.current || isLeaving) return;
+
+        leaveRequestedRef.current = true;
+        setIsLeaving(true);
+
+        try {
+            if (room.state !== ConnectionState.Disconnected) {
+                await disconnect();
+            } else {
+                notifyLeaveComplete();
+            }
+        } catch (err) {
+            console.error("[LiveKit] Leave disconnect failed:", err);
+            notifyLeaveComplete();
         }
-        finalizeLeave();
-    }, [finalizeLeave]);
+    }, [disconnect, isLeaving, notifyLeaveComplete, room]);
 
     return (
         <ThemeProvider theme={theme}>
-            <LiveKitRoom
-                token={token}
-                serverUrl={serverUrl}
-                connect={shouldConnect}
-                video={true}
-                audio={true}
-                options={{ disconnectOnPageLeave: true }}
-                onDisconnected={handleDisconnected}
-            >
-                <CustomConferenceRoom onLeaveRequest={handleLeaveRequest} />
-                <RoomAudioRenderer />
-            </LiveKitRoom>
+            <RoomContext.Provider value={room}>
+                <CustomConferenceRoom
+                    onLeaveRequest={requestLeave}
+                    isLeaving={isLeaving}
+                />
+                <RoomAudioRenderer room={room} />
+            </RoomContext.Provider>
         </ThemeProvider>
     );
 }
