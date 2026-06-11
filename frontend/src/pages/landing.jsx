@@ -116,7 +116,7 @@ export default function LandingPage() {
                         <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>REST Server API</p>
                     </div>
                     <div className="statCard">
-                        <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--primary)', marginBottom: '0.4rem' }}>Socket.IO & WebRTC</h3>
+                        <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--primary)', marginBottom: '0.4rem' }}>LiveKit SFU & WebRTC</h3>
                         <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Real-Time Video Stream</p>
                     </div>
                     <div className="statCard">
@@ -234,6 +234,10 @@ export default function LandingPage() {
                     </button>
                 </div>
             </section>
+
+            <footer style={{ padding: '2rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--border)' }}>
+                <p>© {new Date().getFullYear()} Sangama. All rights reserved. Built with LiveKit & WebRTC.</p>
+            </footer>
         </div>
     )
 }
