@@ -7,7 +7,6 @@ import {
     useRemoteParticipants,
     useRoomContext,
     useChat,
-    useSequentialRoomConnectDisconnect,
 } from "@livekit/components-react";
 import { ConnectionState, Room, RoomEvent } from "livekit-client";
 import { Badge, IconButton, Snackbar } from '@mui/material';
@@ -349,17 +348,11 @@ export default function LiveKitMeeting({
 }) {
     const [isDark, setIsDark] = useState(false);
     const [isLeaving, setIsLeaving] = useState(false);
+    const [room, setRoom] = useState(null);
 
     const leaveRequestedRef = useRef(false);
     const onLeaveRef = useRef(onLeave);
     onLeaveRef.current = onLeave;
-
-    const room = useMemo(
-        () => new Room({ disconnectOnPageLeave: false }),
-        []
-    );
-
-    const { connect, disconnect } = useSequentialRoomConnectDisconnect(room);
 
     useEffect(() => {
         const savedTheme = localStorage.getItem("theme");
@@ -387,10 +380,13 @@ export default function LiveKitMeeting({
     }, []);
 
     useEffect(() => {
-        if (!token || !serverUrl || !connect || !disconnect) return;
+        if (!token || !serverUrl) return;
+
+        const r = new Room({ disconnectOnPageLeave: false });
+        setRoom(r);
+        leaveRequestedRef.current = false;
 
         let cancelled = false;
-        leaveRequestedRef.current = false;
 
         const onConnected = () => {};
 
@@ -400,20 +396,25 @@ export default function LiveKitMeeting({
             }
         };
 
-        room.on(RoomEvent.Connected, onConnected);
-        room.on(RoomEvent.Disconnected, onDisconnected);
+        r.on(RoomEvent.Connected, onConnected);
+        r.on(RoomEvent.Disconnected, onDisconnected);
 
         const start = async () => {
             try {
-                await connect(serverUrl, token, { autoSubscribe: true });
-                if (cancelled) return;
+                await r.connect(serverUrl, token, { autoSubscribe: true });
+                if (cancelled) {
+                    await r.disconnect();
+                    return;
+                }
 
                 await Promise.all([
-                    room.localParticipant.setMicrophoneEnabled(true),
-                    room.localParticipant.setCameraEnabled(true),
+                    r.localParticipant.setMicrophoneEnabled(true),
+                    r.localParticipant.setCameraEnabled(true),
                 ]);
             } catch (err) {
-                console.error("[LiveKit] Failed to connect or publish tracks:", err);
+                if (!cancelled) {
+                    console.error("[LiveKit] Failed to connect or publish tracks:", err);
+                }
             }
         };
 
@@ -421,26 +422,24 @@ export default function LiveKitMeeting({
 
         return () => {
             cancelled = true;
-            room.off(RoomEvent.Connected, onConnected);
-            room.off(RoomEvent.Disconnected, onDisconnected);
+            r.off(RoomEvent.Connected, onConnected);
+            r.off(RoomEvent.Disconnected, onDisconnected);
 
-            if (room.state !== ConnectionState.Disconnected) {
-                disconnect().catch((err) => {
-                    console.error("[LiveKit] Cleanup disconnect failed:", err);
-                });
-            }
+            r.disconnect().catch((err) => {
+                console.error("[LiveKit] Cleanup disconnect failed:", err);
+            });
         };
-    }, [room, connect, disconnect, serverUrl, token, notifyLeaveComplete]);
+    }, [serverUrl, token, notifyLeaveComplete]);
 
     const requestLeave = useCallback(async () => {
-        if (leaveRequestedRef.current || isLeaving) return;
+        if (leaveRequestedRef.current || isLeaving || !room) return;
 
         leaveRequestedRef.current = true;
         setIsLeaving(true);
 
         try {
             if (room.state !== ConnectionState.Disconnected) {
-                await disconnect();
+                await room.disconnect();
             } else {
                 notifyLeaveComplete();
             }
@@ -448,7 +447,23 @@ export default function LiveKitMeeting({
             console.error("[LiveKit] Leave disconnect failed:", err);
             notifyLeaveComplete();
         }
-    }, [disconnect, isLeaving, notifyLeaveComplete, room]);
+    }, [room, isLeaving, notifyLeaveComplete]);
+
+    if (!room) {
+        return (
+            <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: '100vh',
+                background: '#0B0F19',
+                color: 'white',
+                fontFamily: "'Inter', sans-serif"
+            }}>
+                <p style={{ fontSize: '1.1rem', fontWeight: 500, color: '#9CA3AF' }}>Preparing meeting room...</p>
+            </div>
+        );
+    }
 
     return (
         <ThemeProvider theme={theme}>
